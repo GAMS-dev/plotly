@@ -249,27 +249,3 @@ transmute_.plotly <- function(.data, ..., .dots) {
 # 
 # n_dots <- function(...) nargs()
 
-
-# ---------------------------------------------------------------------------
-# miscellanous methods
-# ---------------------------------------------------------------------------
-
-# Avoid errors when passing a shared data to ggplot2
-# qplot(data = crosstalk::SharedData$new(mtcars), mpg, wt)
-
-#' @export
-fortify.SharedData <- function(model, data, ...) {
-  key <- model$key()
-  set <- model$groupName()
-  data <- model$origData()
-  # need a consistent name so we know how to access it ggplotly()
-  data[[crosstalk_key()]] <- key
-  structure(data, set = set)
-}
-
-# yes, you can feed a plotly object into ggplot %^)
-#' @export
-ggplot.plotly <- function(data, mapping = aes(), ...,
-                          environment = parent.frame()) {
-  ggplot(plotly_data(data), mapping = mapping, ..., environment = environment)
-}
