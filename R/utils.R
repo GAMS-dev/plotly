@@ -823,14 +823,15 @@ verify_webgl <- function(p) {
     return(p)
   }
   types <- sapply(p$x$data, function(x) x[["type"]][1] %||% "scatter")
-  idx <- paste0(types, "gl") %in% names(Schema$traces)
-  if (any(!idx)) {
+  can_gl <- paste0(types, "gl") %in% names(Schema$traces)
+  already_gl <- grepl("gl$", types)
+  if (any(!can_gl & !already_gl)) {
     warning(
       "The following traces don't have a WebGL equivalent: ",
-      paste(which(!idx), collapse = ", ")
+      paste(which(!can_gl & !already_gl), collapse = ", ")
     )
   }
-  for (i in which(idx)) {
+  for (i in which(can_gl)) {
     p$x$data[[i]]$type <- paste0(p$x$data[[i]]$type, "gl")
   }
   p
@@ -1137,4 +1138,19 @@ try_library <- function(pkg, fun = NULL) {
 # similar logic to rstudioapi::isAvailable()
 is_rstudio <- function() {
   identical(.Platform$GUI, "RStudio")
+}
+
+# nchar() needs a non-empty character vector; sometimes x will be a
+# factor, or an empty vector.
+robust_nchar <- function(x, ...) {
+  if (length(x)) nchar(as.character(x), ...)
+  else 0
+}
+
+# Extract longest element, or blank if none
+longest_element <- function(x) {
+  if (length(x))
+    x[which.max(robust_nchar(x))]
+  else
+    ""
 }

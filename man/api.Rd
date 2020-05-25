@@ -10,17 +10,31 @@
 \alias{api}
 \title{Tools for working with plotly's REST API (v2)}
 \usage{
-api_create(x = last_plot(), filename = NULL, fileopt = c("overwrite",
-  "new"), sharing = c("public", "private", "secret"), ...)
+api_create(
+  x = last_plot(),
+  filename = NULL,
+  fileopt = c("overwrite", "new"),
+  sharing = c("public", "private", "secret"),
+  ...
+)
 
-\method{api_create}{plotly}(x = last_plot(), filename = NULL,
-  fileopt = "overwrite", sharing = "public", ...)
+\method{api_create}{plotly}(
+  x = last_plot(),
+  filename = NULL,
+  fileopt = "overwrite",
+  sharing = "public",
+  ...
+)
 
-\method{api_create}{ggplot}(x = last_plot(), filename = NULL,
-  fileopt = "overwrite", sharing = "public", ...)
+\method{api_create}{ggplot}(
+  x = last_plot(),
+  filename = NULL,
+  fileopt = "overwrite",
+  sharing = "public",
+  ...
+)
 
-\method{api_create}{data.frame}(x, filename = NULL,
-  fileopt = "overwrite", sharing = "public", ...)
+\method{api_create}{data.frame}(x, filename = NULL, fileopt = "overwrite", sharing = "public", ...)
 
 api_download_plot(id, username)
 
@@ -53,7 +67,7 @@ viewing that page will be able to view the graph.
 You do not need to be logged in to view this plot.}
 
 \item{...}{For \code{api()}, these arguments are passed onto
-\code{\link[httr:VERB]{httr::VERB()}}. For \code{api_create()}, these arguments are
+\code{\link[httr:RETRY]{httr::RETRY()}}. For \code{api_create()}, these arguments are
 included in the body of the HTTP request.}
 
 \item{id}{a filename id.}
@@ -64,9 +78,9 @@ included in the body of the HTTP request.}
 To see a list of all available endpoints, call \code{api()}.
 Any relevant query parameters should be included here (see examples).}
 
-\item{verb}{name of the HTTP verb to use (as in, \code{\link[httr:VERB]{httr::VERB()}}).}
+\item{verb}{name of the HTTP verb to use (as in, \code{\link[httr:RETRY]{httr::RETRY()}}).}
 
-\item{body}{body of the HTTP request(as in, \code{\link[httr:VERB]{httr::VERB()}}).
+\item{body}{body of the HTTP request(as in, \code{\link[httr:RETRY]{httr::RETRY()}}).
 If this value is not already converted to JSON
 (via \code{\link[jsonlite:toJSON]{jsonlite::toJSON()}}), it uses the internal \code{to_JSON()}
 to ensure values are "automatically unboxed" (i.e., vec.}

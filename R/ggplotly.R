@@ -127,7 +127,7 @@ ggplotly.ggmatrix <- function(p = ggplot2::last_plot(), width = NULL,
                titleY = TRUE, titleX = TRUE) %>% 
     hide_legend() %>%
     layout(dragmode = "select")
-  if (nchar(p$title %||% "") > 0) {
+  if (robust_nchar(p$title) > 0) {
     s <- layout(s, title = p$title)
   }
   for (i in seq_along(p$xAxisLabels)) {
@@ -436,7 +436,7 @@ gg2list <- function(p, width = NULL, height = NULL,
     font = text2font(theme$text)
   )
   # main plot title
-  if (nchar(plot$labels$title %||% "") > 0) {
+  if (robust_nchar(plot$labels$title) > 0) {
     gglayout$title <- list(
       text = faced(plot$labels$title, theme$plot.title$face),
       font = text2font(theme$plot.title),
@@ -567,7 +567,7 @@ gg2list <- function(p, width = NULL, height = NULL,
       # allocate enough space for the _longest_ text label
       axisTextX <- theme[["axis.text.x"]] %||% theme[["axis.text"]]
       labz <- unlist(lapply(layout$panel_params, function(pp) { pp[["x"]]$get_labels %()% pp$x.labels }))
-      lab <- labz[which.max(nchar(labz))]
+      lab <- longest_element(labz)
       panelMarginY <- panelMarginY + axisTicksX +
         bbox(lab, axisTextX$angle, unitConvert(axisTextX, "npc", "height"))[["height"]]
     }
@@ -579,7 +579,7 @@ gg2list <- function(p, width = NULL, height = NULL,
       # allocate enough space for the _longest_ text label
       axisTextY <- theme[["axis.text.y"]] %||% theme[["axis.text"]]
       labz <- unlist(lapply(layout$panel_params, function(pp) { pp[["y"]]$get_labels %()% pp$y.labels }))
-      lab <- labz[which.max(nchar(labz))]
+      lab <- longest_element(labz)
       panelMarginX <- panelMarginX + axisTicksY +
         bbox(lab, axisTextY$angle, unitConvert(axisTextY, "npc", "width"))[["width"]]
     }
@@ -612,7 +612,13 @@ gg2list <- function(p, width = NULL, height = NULL,
       if ("CoordSf" %in% class(p$coordinates)) {
         # see CoordSf$render_axis_v
         direction <- if (xy == "x") "E" else "N"
-        idx <- rng$graticule$type == direction & !is.na(rng$graticule$degree_label)
+        idx <- rng$graticule$type == direction & 
+          !is.na(rng$graticule$degree_label) &
+          # Respect the logical 'plot12' column which sf constructs for 
+          # determining which tick labels should be drawn
+          # https://github.com/r-spatial/sf/blob/b49d37/R/graticule.R#L199
+          # https://github.com/r-spatial/sf/blob/52a8351/R/plot.R#L580
+          (rng$graticule$plot12 %||% TRUE)
         tickData <- rng$graticule[idx, ]
         # TODO: how to convert a language object to unicode character string?
         rng[[paste0(xy, ".labels")]] <- sub(
@@ -685,6 +691,11 @@ gg2list <- function(p, width = NULL, height = NULL,
       
       ticktext <- rng[[xy]]$get_labels %()% rng[[paste0(xy, ".labels")]]
       tickvals <- rng[[xy]]$break_positions %()% rng[[paste0(xy, ".major")]]
+      
+      # https://github.com/tidyverse/ggplot2/pull/3566#issuecomment-565085809
+      hasTickText <- !(is.na(ticktext) | is.na(tickvals))
+      ticktext <- ticktext[hasTickText]
+      tickvals <- tickvals[hasTickText]
       
       axisObj <- list(
         # TODO: log type?
@@ -795,7 +806,7 @@ gg2list <- function(p, width = NULL, height = NULL,
       
       # do some stuff that should be done once for the entire plot
       if (i == 1) {
-        axisTickText <- axisObj$ticktext[which.max(nchar(axisObj$ticktext))]
+        axisTickText <- longest_element(axisObj$ticktext)
         side <- if (xy == "x") "b" else "l"
         # account for axis ticks, ticks text, and titles in plot margins
         # (apparently ggplot2 doesn't support axis.title/axis.text margins)
@@ -803,7 +814,7 @@ gg2list <- function(p, width = NULL, height = NULL,
           bbox(axisTickText, axisObj$tickangle, axisObj$tickfont$size)[[type]] +
           bbox(axisTitleText, axisTitle$angle, unitConvert(axisTitle, "pixels", type))[[type]]
         
-        if (nchar(axisTitleText) > 0) {
+        if (robust_nchar(axisTitleText) > 0) {
           axisTextSize <- unitConvert(axisText, "npc", type)
           axisTitleSize <- unitConvert(axisTitle, "npc", type)
           offset <-
@@ -825,7 +836,7 @@ gg2list <- function(p, width = NULL, height = NULL,
           }
           # facets have multiple axis objects, but only one title for the plot,
           # so we empty the titles and try to draw the title as an annotation
-          if (nchar(axisTitleText) > 0) {
+          if (robust_nchar(axisTitleText) > 0) {
             # npc is on a 0-1 scale of the _entire_ device,
             # but these units _should_ be wrt to the plotting region
             # multiplying the offset by 2 seems to work, but this is a terrible hack
@@ -862,7 +873,7 @@ gg2list <- function(p, width = NULL, height = NULL,
       )
       if (is_blank(theme[["strip.text.x"]])) col_txt <- ""
       if (inherits(plot$facet, "FacetGrid") && lay$ROW != 1) col_txt <- ""
-      if (nchar(col_txt) > 0) {
+      if (robust_nchar(col_txt) > 0) {
         col_lab <- make_label(
           col_txt, x = mean(xdom), y = max(ydom),
           el = theme[["strip.text.x"]] %||% theme[["strip.text"]],
@@ -879,7 +890,7 @@ gg2list <- function(p, width = NULL, height = NULL,
       )
       if (is_blank(theme[["strip.text.y"]])) row_txt <- ""
       if (inherits(plot$facet, "FacetGrid") && lay$COL != nCols) row_txt <- ""
-      if (nchar(row_txt) > 0) {
+      if (robust_nchar(row_txt) > 0) {
         row_lab <- make_label(
           row_txt, x = max(xdom), y = mean(ydom),
           el = theme[["strip.text.y"]] %||% theme[["strip.text"]],
@@ -1137,8 +1148,8 @@ unitConvert <- function(u, to = c("npc", "pixels"), type = c("x", "y", "height",
 # from R, but it seems 96 is a reasonable assumption.
 mm2pixels <- function(u) {
   u <- verifyUnit(u)
-  if (getUnitType(u) != "mm") {
-    stop("Unit must be in millimeters")
+  if (any(getUnitType(u) != "mm")) {
+    stop("All units must be in millimeters")
   }
   (as.numeric(u) * 96) / 25.4
 }
@@ -1157,11 +1168,8 @@ verifyUnit <- function(u) {
 # Use public API for getting the unit's type, if available
 # https://github.com/ropensci/plotly/pull/1646#issue-331268260
 getUnitType <- function(u) {
-  if (getRversion() >= "4.0.0") {
-    get("unitType", envir = asNamespace("grid"))(u)
-  } else {
+  tryNULL(get("unitType", envir = asNamespace("grid"))(u)) %||%
     attr(u, "unit")
-  }
 }
 
 # detect a blank theme element
@@ -1172,7 +1180,7 @@ is_blank <- function(x) {
 # given text, and x/y coordinates on 0-1 scale,
 # convert ggplot2::element_text() to plotly annotation
 make_label <- function(txt = "", x, y, el = ggplot2::element_text(), ...) {
-  if (is_blank(el) || is.null(txt) || nchar(txt) == 0 || length(txt) == 0) {
+  if (is_blank(el) || is.null(txt) || robust_nchar(txt) == 0 || length(txt) == 0) {
     return(NULL)
   }
   angle <- el$angle %||% 0
@@ -1207,9 +1215,9 @@ has_facet <- function(x) {
 
 bbox <- function(txt = "foo", angle = 0, size = 12) {
   # assuming the horizontal size of a character is roughly half of the vertical
-  n <- nchar(txt)
+  n <- robust_nchar(txt)
   if (sum(n) == 0) return(list(height = 0, width = 0))
-  w <- size * (nchar(txt) / 2)
+  w <- size * (robust_nchar(txt) / 2)
   angle <- abs(angle %||% 0)
   # do the sensible thing in the majority of cases
   if (angle == 0) return(list(height = size, width = w))
