@@ -1,4 +1,4 @@
-context("highlighting and animation")
+
 
 m <- crosstalk::SharedData$new(mtcars, ~vs)
 p <- plot_ly(m, x = ~wt, y = ~mpg) %>% add_markers()
@@ -67,6 +67,18 @@ test_that("Simple scatterplot brushing with plot_ly() and subplot()", {
   expect_true(all(b$x$data[[2]]$key == row.names(mtcars)))
   expect_true(b$x$data[[1]]$set == "testing")
   expect_true(b$x$layout$dragmode == "select")
+})
+
+
+test_that("group_by.plotly() retains crosstalk set", {
+  b <- mtcars %>%
+    crosstalk::SharedData$new(group = "foo") %>%
+    plot_ly(x = ~mpg, y = ~hp) %>%
+    group_by(am) %>%
+    add_markers() %>%
+    plotly_build()
+  expect_equal(b$x$data[[1]]$set, "foo")
+  expect_true(all(b$x$data[[1]]$key == row.names(mtcars)))
 })
 
 
@@ -347,8 +359,8 @@ test_that("simple animation targeting works", {
 
 test_that("animation frames are boxed up correctly", {
   dallas <- subset(txhousing, city == "Dallas" & month == 1)
-  p <- ggplot(dallas) +
-    geom_point(aes(x = volume, y = sales, frame = year))
+  p <- ggplot(dallas, aes(x = volume, y = sales, frame = year)) +
+    geom_point()
   l <- plotly_build(p)$x
   
   for (i in seq_along(l$frames)) {
@@ -379,6 +391,7 @@ test_that("animation button can be customized", {
 
 test_that("sf works with crosstalk", {
   skip_if_not_installed("sf")
+  skip_if_not_installed("s2")
   
   nc <- sf::st_read(system.file("shape/nc.shp", package = "sf"), quiet = TRUE)
   # shared data will make the polygons "query-able"

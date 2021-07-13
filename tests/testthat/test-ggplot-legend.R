@@ -1,4 +1,4 @@
-context("legends")
+
 
 expect_traces <- function(gg, n.traces, name){
   stopifnot(is.numeric(n.traces))
@@ -28,10 +28,9 @@ test_that("Discrete colour and shape get merged into one legend", {
   expect_identical(
     nms, paste0("(", d$vs, ",", d$cyl, ")")
   )
-  a <- info$layout$annotations
-  expect_match(a[[1]]$text, "^factor\\(vs\\)")
-  expect_match(a[[1]]$text, "factor\\(cyl\\)$")
-  expect_true(a[[1]]$y > info$layout$legend$y)
+  legend_title <- info$layout$legend$title$text
+  expect_match(legend_title, "^factor\\(vs\\)")
+  expect_match(legend_title, "factor\\(cyl\\)$")
 })
 
 
@@ -72,14 +71,15 @@ test_that("very long legend items", {
   info <- expect_traces(p_long_items, 3, "very-long-legend-items")
 })
 
-iris$All <- "All species"
-p <- qplot(data = iris, x = Sepal.Length, y = Sepal.Width, color = All)
+penguins <- palmerpenguins::penguins
+penguins$All <- "All species"
+p <- qplot(data = penguins, x = bill_length_mm, y = bill_depth_mm, color = All)
 
 test_that("legend is created with discrete mapping regardless of unique values", {
   info <- expect_traces(p, 1, "one-entry")
   expect_true(info$data[[1]]$showlegend)
   expect_true(info$layout$showlegend)
-  expect_equivalent(length(info$layout$annotations), 1)
+  expect_true(nzchar(info$layout$legend$title$text))
 })
 
 test_that("can hide legend", {

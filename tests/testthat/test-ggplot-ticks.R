@@ -1,4 +1,3 @@
-context("ggplot ticks")
 
 PlantGrowth$type <-
   ifelse(PlantGrowth$group == "ctrl", "control", "treatment")
@@ -56,7 +55,8 @@ test_that('boxes with coord_flip()+facet_grid(scales="free")', {
 
 test_that("limits can hide data", {
   boxes.limits <- boxes + scale_x_discrete(limits = c("trt1", "ctrl"))
-  info <- expect_traces(boxes.limits, 1, "limits-hide")
+  info <- expect_warning(expect_traces(boxes.limits, 1, "limits-hide"), 
+                         regexp = "missing values")
   expect_equivalent(info$layout$xaxis$ticktext, c("trt1", "ctrl"))
 })
 

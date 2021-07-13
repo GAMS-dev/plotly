@@ -1,6 +1,6 @@
 Package: plotly
 Title: Create Interactive Web Graphics via 'plotly.js' (modified for use in MIRO)
-Version: 4.9.2.999
+Version: 4.9.4.9000
 Authors@R: c(person("Carson", "Sievert", role = c("aut", "cre"),
     email = "cpsievert1@gmail.com", comment = c(ORCID = "0000-0002-4958-2844")),
     person("Chris", "Parmer", role = "aut",
@@ -17,10 +17,12 @@ Authors@R: c(person("Carson", "Sievert", role = c("aut", "cre"),
     email = "pedro@plot.ly"),
     person("Frederik", "Proske", role = "ctb",
     email = "fproske@gams.com"),
+    person("Salim", "Brüggemann", role = "ctb",
+    email = "salim-b@pm.me", comment = c(ORCID = "0000-0002-5329-5987")),
     person("Plotly Technologies Inc.", role = "cph"))
 License: MIT + file LICENSE
 Description: Create interactive web graphics from 'ggplot2' graphs and/or a custom interface to the (MIT-licensed) JavaScript library 'plotly.js' inspired by the grammar of graphics.
-URL: https://plotly-r.com, https://github.com/ropensci/plotly#readme, https://plot.ly/r
+URL: https://plotly-r.com, https://github.com/ropensci/plotly#readme, https://plotly.com/r/
 BugReports: https://github.com/ropensci/plotly/issues
 Depends:
     R (>= 3.2.0)
@@ -34,13 +36,14 @@ Imports:
     viridisLite,
     base64enc,
     htmltools (>= 0.3.6),
-    htmlwidgets (>= 1.3),
-    tidyr,
+    htmlwidgets (>= 1.5.2.9001),
+    tidyr (>= 1.0.0),
     RColorBrewer,
     dplyr,
+    vctrs,
     tibble,
     lazyeval (>= 0.2.0),
-    rlang,
+    rlang (>= 0.4.10),
     crosstalk,
     purrr,
     data.table,
@@ -48,6 +51,7 @@ Imports:
 Suggests:
     MASS,
     maps,
+    hexbin,
     ggthemes,
     GGally,
     testthat,
@@ -57,7 +61,6 @@ Suggests:
     shinytest (>= 1.3.0),
     curl,
     rmarkdown,
-    vdiffr,
     Cairo,
     broom,
     webshot,
@@ -70,8 +73,10 @@ Suggests:
     IRdisplay,
     processx,
     plotlyGeoAssets,
-    forcats
+    forcats,
+    palmerpenguins,
+    rversions
 LazyData: true
-RoxygenNote: 7.1.0
+RoxygenNote: 7.1.1
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)

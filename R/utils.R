@@ -139,7 +139,7 @@ crosstalk_key <- function() ".crossTalkKey"
 # arrange data if the vars exist, don't throw error if they don't
 arrange_safe <- function(data, vars) {
   vars <- vars[vars %in% names(data)]
-  if (length(vars)) dplyr::arrange_(data, .dots = vars) else data
+  if (length(vars)) dplyr::arrange(data, !!!rlang::syms(vars)) else data
 }
 
 is_mapbox <- function(p) {
@@ -379,7 +379,9 @@ supply_highlight_attrs <- function(p) {
 
     # include one selectize dropdown per "valid" SharedData layer
     if (isTRUE(p$x$highlight$selectize)) {
-      p$x$selectize[[new_id()]] <- list(
+      # Hash i (the crosstalk group id) so that it can be used
+      # as an HTML id client-side (i.e., key shouldn't contain spaces)
+      p$x$selectize[[rlang::hash(i)]] <- list(
         items = data.frame(value = k, label = k), group = i
       )
     }
@@ -521,7 +523,7 @@ verify_attr <- function(proposed, schema, layoutAttr = FALSE) {
     
     # do the same for "sub-attributes"
     if (identical(role, "object") && is.recursive(proposed[[attr]])) {
-      proposed[[attr]] <- verify_attr(proposed[[attr]], schema[[attr]], layoutAttr = layoutAttr)
+      proposed[[attr]] <- verify_attr(proposed[[attr]], attrSchema, layoutAttr = layoutAttr)
     }
   }
   
@@ -585,7 +587,7 @@ verify_type <- function(trace) {
     message(
       "No ", trace$type, " mode specifed:\n",
       "  Setting the mode to markers\n",
-      "  Read more about this attribute -> https://plot.ly/r/reference/#scatter-mode"
+      "  Read more about this attribute -> https://plotly.com/r/reference/#scatter-mode"
     )
     trace$mode <- "markers"
   }
@@ -596,7 +598,7 @@ relay_type <- function(type) {
   message(
     "No trace type specified:\n", 
     "  Based on info supplied, a '", type, "' trace seems appropriate.\n",
-    "  Read more about this trace type -> https://plot.ly/r/reference/#", type
+    "  Read more about this trace type -> https://plotly.com/r/reference/#", type
   )
   type
 }
@@ -609,12 +611,14 @@ translate_linebreaks <- function(p) {
     typ <- typeof(a)
     if (typ == "list") {
       # retain the class of list elements 
-      # which important for many things, such as colorbars
+      # which is important for many things, such as colorbars
       a[] <- lapply(a, recurse)
     } else if (typ == "character" && !inherits(a, "JS_EVAL")) {
       attrs <- attributes(a)
       a <- gsub("\n", br(), a, fixed = TRUE)
       attributes(a) <- attrs
+    } else if (is.factor(a)) {
+      levels(a) <- gsub("\n", br(), levels(a), fixed = TRUE)
     }
     a
   }
@@ -841,9 +845,6 @@ verify_showlegend <- function(p) {
   # this attribute should be set in hide_legend()
   # it ensures that "legend titles" go away in addition to showlegend = FALSE
   if (isTRUE(p$x$.hideLegend)) {
-    ann <- p$x$layout$annotations
-    is_title <- vapply(ann, function(x) isTRUE(x$legendTitle), logical(1))
-    p$x$layout$annotations <- ann[!is_title]
     p$x$layout$showlegend <- FALSE 
   }
   show <- vapply(p$x$data, function(x) x$showlegend %||% TRUE, logical(1))
@@ -1019,7 +1020,8 @@ try_file <- function(f, what) {
 # preferred defaults for toJSON mapping
 to_JSON <- function(x, ...) {
   jsonlite::toJSON(x, digits = 50, auto_unbox = TRUE, force = TRUE,
-                   null = "null", na = "null", ...)
+                   null = "null", na = "null", 
+                   time_format = "%Y-%m-%d %H:%M:%OS6",  ...)
 }
 
 # preferred defaults for toJSON mapping
@@ -1135,6 +1137,15 @@ try_library <- function(pkg, fun = NULL) {
        "Please install and try again.", call. = FALSE)
 }
 
+# a la shiny:::is_available
+is_available <- function(package, version = NULL) {
+  installed <- nzchar(system.file(package = package))
+  if (is.null(version)) {
+    return(installed)
+  }
+  installed && isTRUE(utils::packageVersion(package) >= version)
+}
+
 # similar logic to rstudioapi::isAvailable()
 is_rstudio <- function() {
   identical(.Platform$GUI, "RStudio")
@@ -1153,4 +1164,13 @@ longest_element <- function(x) {
     x[which.max(robust_nchar(x))]
   else
     ""
+}
+
+# A dplyr::group_by wrapper for the add argument
+group_by_add <- function(..., add = TRUE) {
+  if (packageVersion('dplyr') >= '1.0') {
+    dplyr::group_by(...,  .add = add)
+  } else {
+    dplyr::group_by(...,  add = add)
+  } 
 }

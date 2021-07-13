@@ -1,7 +1,7 @@
-context("geom_sf")
 
 test_that("geom_sf() basic polygons.", {
   skip_if_not_installed("sf")
+  skip_if_not_installed("s2")
   
   nc <- sf::st_read(system.file("shape/nc.shp", package = "sf"), quiet = TRUE)
   
@@ -33,19 +33,11 @@ test_that("geom_sf() geometry collection.", {
   
   # graticule, point, line, polygon
   expect_length(l$data, 4)
-  
-  # test data/default for line
-  # TODO: test that defaults are correct one geom_sf() becomes stable
-  expect_equivalent(l$data[[2]]$x, c(4, 3))
-  expect_equivalent(l$data[[2]]$y, c(0, 0))
-  expect_equivalent(l$data[[3]]$x, I(1))
-  expect_equivalent(l$data[[3]]$y, I(0))
-  expect_equivalent(l$data[[4]]$x, c(5.5, 7, 7, 6, 5.5, 5.5))
-  expect_equivalent(l$data[[4]]$y, c(0, 0, -.5, -.5, 0, 0))
 })
 
 test_that("geom_sf() polygons with fill/text.", {
   skip_if_not_installed("sf")
+  skip_if_not_installed("s2")
   
   nc <- sf::st_read(system.file("shape/nc.shp", package = "sf"), quiet = TRUE)
   p <- ggplot(nc) + geom_sf(aes(fill = AREA, text = NAME))
@@ -65,6 +57,7 @@ test_that("geom_sf() polygons with fill/text.", {
 
 test_that("geom_sf() with basic polygons and points.", {
   skip_if_not_installed("sf")
+  skip_if_not_installed("s2")
   
   nc <- sf::st_read(system.file("shape/nc.shp", package = "sf"), quiet = TRUE)
   p <- ggplot(nc) +
@@ -83,6 +76,7 @@ test_that("geom_sf() with basic polygons and points.", {
 
 test_that("sf aspect ratio is correct", {
   skip_if_not_installed("sf")
+  skip_if_not_installed("s2")
   
   nc <- sf::st_read(system.file("shape/nc.shp", package = "sf"), quiet = TRUE)
   p <- ggplot(nc) + geom_sf() 
@@ -95,6 +89,7 @@ test_that("sf aspect ratio is correct", {
 
 test_that("works with a blank theme", {
   skip_if_not_installed("sf")
+  skip_if_not_installed("s2")
   
   nc <- sf::st_read(system.file("shape/nc.shp", package = "sf"), quiet = TRUE)
   p <- ggplot(nc) + geom_sf() + 

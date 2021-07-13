@@ -1,5 +1,3 @@
-context("dynamicTicks")
-
 # note: test-ggplot-lines.R has some tests for date dynamicTicks
 
 test_that("Discrete axis maps to categorical type", {
@@ -33,7 +31,9 @@ test_that("Categorical axis reflects custom scale mapping", {
   g <- ggplot(mpg, aes(class, color = class)) + 
     geom_bar() +
     scale_x_discrete(limits = lims)
-  p <- ggplotly(g, dynamicTicks = "x")
+  
+  expect_warning(p <- ggplotly(g, dynamicTicks = "x"), 
+                 regexp = "non-finite values")
   
   axisActual <- with(
     p$x$layout$xaxis, list(type, tickmode, categoryorder, categoryarray)
@@ -48,7 +48,8 @@ test_that("Categorical axis reflects custom scale mapping", {
   g <- ggplot(mpg, aes(class, color = class)) + 
     geom_bar() +
     scale_x_discrete(limits = lims, labels = labs)
-  p <- ggplotly(g, dynamicTicks = "x")
+  expect_warning(p <- ggplotly(g, dynamicTicks = "x"), 
+                 regexp = "non-finite values")
   
   axisActual <- with(
     p$x$layout$xaxis, list(type, tickmode, categoryorder, categoryarray)
@@ -103,4 +104,3 @@ test_that("Inverse maps colorbar data", {
   expect_true(l$data[[2]]$y %in% unique(mpg$manufacturer))
   
 })
-
