@@ -79,7 +79,8 @@ layers2traces <- function(data, prestats_data, layout, p) {
   discreteScales <- list()
   for (sc in p$scales$non_position_scales()$scales) {
     if (sc$is_discrete()) {
-      discreteScales[[sc$aesthetics]] <- sc
+      nm <- paste(sc$aesthetics, collapse = "_")
+      discreteScales[[nm]] <- sc
     }
   }
   # Convert "high-level" geoms to their "low-level" counterpart
@@ -102,7 +103,12 @@ layers2traces <- function(data, prestats_data, layout, p) {
   }
   # now to the actual layer -> trace conversion
   trace.list <- list()
-  aes_no_guide <- names(vapply(p$guides, identical, logical(1), "none"))
+  
+  # ggplot2 >v3.4.2 (specifically #4879) moved the guides system to ggproto, 
+  # which moved the location of the name->value fields
+  guides <- if (inherits(p$guides, "ggproto")) p$guides$guides else p$guides
+  aes_no_guide <- names(guides)[vapply(guides, identical, logical(1), "none")]
+  
   for (i in seq_along(datz)) {
     d <- datz[[i]]
     # variables that produce multiple traces and deserve their own legend entries
@@ -443,7 +449,9 @@ to_basic.GeomHline <- function(data, prestats_data, layout, params, p, ...) {
     data = layout$layout, cols = paste0(x, c("_min", "_max")), values_to = x, names_to = "variable"
   ) 
   lay <- as.data.frame(lay)
-  data <- merge(lay[c("PANEL", x)], data, by = "PANEL")
+  if (nrow(data) > 0) {
+    data <- merge(lay[c("PANEL", x)], data, by = "PANEL")
+  }
   data[["x"]] <- data[[x]]
   data[["y"]] <- data$yintercept
   prefix_class(data, c("GeomHline", "GeomPath"))
@@ -460,7 +468,9 @@ to_basic.GeomVline <- function(data, prestats_data, layout, params, p, ...) {
     data = layout$layout, cols = paste0(y, c("_min", "_max")), values_to = y, names_to = "variable"
   ) 
   lay <- as.data.frame(lay)
-  data <- merge(lay[c("PANEL", y)], data, by = "PANEL")
+  if (nrow(data) > 0) {
+    data <- merge(lay[c("PANEL", y)], data, by = "PANEL")
+  }
   data[["y"]] <- data[[y]]
   data[["x"]] <- data$xintercept
   prefix_class(data, c("GeomVline", "GeomPath"))
@@ -562,7 +572,7 @@ to_basic.GeomCrossbar <- function(data, prestats_data, layout, params, p, ...) {
   # from GeomCrossbar$draw_panel()
   middle <- base::transform(data, x = xmin, xend = xmax, yend = y, alpha = NA)
   nm <- linewidth_or_size(GeomCrossbar)
-  data[[nm]] <- data[[nm]] * params$fatten
+  data[[nm]] <- data[[nm]] * (params$fatten %||% formals(geom_crossbar)$fatten)
   list(
     prefix_class(to_basic.GeomRect(data), "GeomCrossbar"),
     prefix_class(to_basic.GeomSegment(middle), "GeomCrossbar")
@@ -756,9 +766,14 @@ geom2trace.GeomPoint <- function(data, params, p) {
     hoveron = hover_on(data)
   )
   # fill is only relevant for pch %in% 21:25
-  pch <- uniq(data$shape) %||% params$shape %||% GeomPoint$default_aes$shape
+  pch <- uniq(data$shape) %||% params$shape %||% GeomPoint$use_defaults(NULL)$shape
   if (any(idx <- pch %in% 21:25) || any(idx <- !is.null(data[["fill_plotlyDomain"]]))) {
-    L$marker$color[idx] <- aes2plotly(data, params, "fill")[idx]
+    fill_value <- aes2plotly(data, params, "fill")
+    if (length(idx) == 1) {
+      L$marker$color <- fill_value
+    } else {
+      L$marker$color[idx] <- fill_value[idx]
+    }
   }
   compact(L)
 }
@@ -851,6 +866,9 @@ geom2trace.GeomPolygon <- function(data, params, p) {
 
 #' @export
 geom2trace.GeomBoxplot <- function(data, params, p) {
+  # marker styling must inherit from GeomPoint$default_aes
+  # https://github.com/hadley/ggplot2/blob/ab42c2ca81458b0cf78e3ba47ed5db21f4d0fc30/NEWS#L73-L7
+  point_defaults <- GeomPoint$use_defaults(NULL)
   compact(list(
     x = data[["x"]],
     y = data[["y"]],
@@ -864,16 +882,15 @@ geom2trace.GeomBoxplot <- function(data, params, p) {
       aes2plotly(data, params, "fill"),
       aes2plotly(data, params, "alpha")
     ),
-    # marker styling must inherit from GeomPoint$default_aes
-    # https://github.com/hadley/ggplot2/blob/ab42c2ca81458b0cf78e3ba47ed5db21f4d0fc30/NEWS#L73-L77
+    # markers/points
     marker = list(
-      opacity = GeomPoint$default_aes$alpha,
-      outliercolor = toRGB(GeomPoint$default_aes$colour),
+      opacity = point_defaults$alpha,
+      outliercolor = toRGB(point_defaults$colour),
       line = list(
-        width = mm2pixels(GeomPoint$default_aes$stroke),
-        color = toRGB(GeomPoint$default_aes$colour)
+        width = mm2pixels(point_defaults$stroke),
+        color = toRGB(point_defaults$colour)
       ),
-      size = mm2pixels(GeomPoint$default_aes$size)
+      size = mm2pixels(point_defaults$size)
     ),
     line = list(
       color = aes2plotly(data, params, "colour"),
@@ -1081,21 +1098,26 @@ ribbon_dat <- function(dat) {
 aes2plotly <- function(data, params, aes = "size") {
   geom <- class(data)[1]
   
-  # Hack to support this geom_sf hack 
-  # https://github.com/tidyverse/ggplot2/blob/505e4bfb/R/sf.R#L179-L187
-  defaults <- if (inherits(data, "GeomSf")) {
-    type <- if (any(grepl("[P-p]oint", class(data)))) "point" else if (any(grepl("[L-l]ine", class(data)))) "line" else ""
-    ggfun("default_aesthetics")(type)
-  } else {
-    geom_obj <- ggfun(geom)
-    # If the first class of `data` is a data.frame,
-    # ggfun() returns a function because ggplot2 now
-    # defines data.frame in it's namespace
-    # https://github.com/ropensci/plotly/pull/1481
-    if ("default_aes" %in% names(geom_obj)) geom_obj$default_aes else NULL
-  }
+  vals <- uniq(data[[aes]]) %||% params[[aes]]
   
-  vals <- uniq(data[[aes]]) %||% params[[aes]] %||% defaults[[aes]] %||% NA
+  if (is.null(vals)) {
+    # Hack to support this geom_sf hack 
+    # https://github.com/tidyverse/ggplot2/blob/505e4bfb/R/sf.R#L179-L187
+    defaults <- if (inherits(data, "GeomSf") && exists("default_aesthetics", envir = asNamespace("ggplot2"))) {
+      type <- if (any(grepl("[P-p]oint", class(data)))) "point" else if (any(grepl("[L-l]ine", class(data)))) "line" else ""
+      ggfun("default_aesthetics")(type)
+    } else {
+      geom_obj <- ggfun(geom)
+      # If the first class of `data` is a data.frame,
+      # ggfun() returns a function because ggplot2 now
+      # defines data.frame in it's namespace
+      # https://github.com/ropensci/plotly/pull/1481
+      if ("default_aes" %in% names(geom_obj)) geom_obj$use_defaults(NULL) else NULL
+    }
+    vals <- defaults[[aes]]
+  }
+  vals <- vals %||% NA
+  
   converter <- switch(
     aes, 
     size = mm2pixels,
